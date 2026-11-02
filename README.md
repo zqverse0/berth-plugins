@@ -8,6 +8,7 @@ Berth 的官方插件，源码在 [zqverse0/berth](https://github.com/zqverse0/b
 - `claude`
 - `cline`
 - `codex`
+- `excalidraw`
 - `gh`
 - `grok`
 - `officecli`
