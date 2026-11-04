@@ -11,6 +11,7 @@ Berth 的官方插件，源码在 [zqverse0/berth](https://github.com/zqverse0/b
 - `excalidraw`
 - `gh`
 - `grok`
+- `hermes`
 - `officecli`
 - `pi`
 - `tailscale`
