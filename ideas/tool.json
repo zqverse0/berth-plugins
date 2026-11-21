@@ -2,7 +2,7 @@
   "$schema": "urn:berth:tool-asset:1",
   "protocol": "berth.tool/1",
   "id": "ideas",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "requires": {
     "process": 1,
     "fs": 1,
@@ -14,7 +14,7 @@
       "name": "Ideas",
       "roles": [],
       "tags": ["ideas", "knowledge"],
-      "description": "Jot down ideas and problems in the project, one Markdown file each under .berth/ideas/, then discuss them with an agent until they land as a note, a task or a commit, or are dropped."
+      "description": "Jot down ideas and problems in the project, one Markdown file each in the space's ideas/ folder, then discuss them with an agent until they land as a note, a task or a commit, or are dropped."
     },
     "editor": [
       {
