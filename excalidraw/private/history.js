@@ -1,5 +1,5 @@
-// 画板的改图记录：Agent 改画板前自动存档，用户在Excalidraw 侧栏的「改图」页签里看每一版、回到任意一版。
-// 记录在插件数据目录 history/<画板绝对路径编码>/，不进项目：index.json + <版本号>.excalidraw。
+// 画板的改图记录：Agent 改画板前自动存档，用户在 Excalidraw 侧栏「图库 → 修改历史」里看每一版、回到任意一版。
+// 版本按画板编号存入 history-by-id/<画板编号>/，不读取按路径存放的旧历史。
 //
 // Agent 改画板一律经 apply（先存当前版，再写入新版，记下这次改了什么），不直接写画板文件：
 //   berth tools run excalidraw private/history.js apply <画板> <新版文件> "<一句话：改了什么>"
@@ -7,6 +7,8 @@
 // 画板页面经 berth.scripts.run 调 list / get / request / snapshot / restore（见 default 导出）。
 
 import { absolute } from "./paths.js"
+import { drawingId, withId, withoutId } from "../page/identity.js"
+import { archiveDir, lookup, prepare, readJson, readText, writeJson } from "./registry.js"
 
 // ponytail: 每张画板只留最近 100 版，按版本数截断；画板很大时再按总字节截
 const KEEP = 100
@@ -19,52 +21,55 @@ export function hash(text) {
   return `${(value >>> 0).toString(36)}-${text.length}`
 }
 
-const dirOf = (path) =>
-  `${berth.storage.dir}/history/${encodeURIComponent(path)}`
+const versionFile = (index, version) => `${index.dir}/${version.id}.excalidraw`
 
-async function readIndex(path) {
-  try {
-    return JSON.parse(await berth.fs.readText(`${dirOf(path)}/index.json`))
-  } catch (error) {
-    if (error.reason !== "not-found") throw error
-    return { path, next: 1, pending: null, versions: [] }
-  }
+async function readIndex(path, binding) {
+  const dir = binding ? archiveDir(binding.id) : null
+  const stored = dir ? await readJson(`${dir}/index.json`) : null
+  return { ...(stored ?? { next: 1, pending: null, versions: [] }), path, dir }
 }
 
-const writeIndex = (index) =>
-  berth.fs.writeText(
-    `${dirOf(index.path)}/index.json`,
-    JSON.stringify(index, null, 1) + "\n"
-  )
+const writeIndex = ({ dir, ...index }) => writeJson(`${dir}/index.json`, index)
 
-/** 记一版（与最新一版内容相同就不记），返回这一版；index 由调用方写回。 */
-async function record(index, content, entry) {
+async function openHistory(path, content, write = false, requestedId) {
+  const current = await readText(path)
+  const binding = await lookup(path, current, drawingId(path, content) ?? requestedId)
+  if (binding?.conflict) throw new Error(`编号已被另一张画板使用 / Drawing ID already used by: ${binding.conflict}`)
+  if (write && !binding) throw new Error("先保存画板以登记新编号 / Save the drawing to register a new ID first")
+  return { index: await readIndex(path, binding), binding }
+}
+
+/** 存画板快照时复用已有的相同内容，Agent 修改仍可单独记录新说明。 */
+async function record(index, content, entry, keepId) {
+  content = withoutId(index.path, content)
   const key = hash(content)
   const last = index.versions[index.versions.length - 1]
-  if (last?.hash === key) return last
-  const version = { id: index.next++, time: Date.now(), hash: key, ...entry }
-  await berth.fs.writeText(
-    `${dirOf(index.path)}/${version.id}.excalidraw`,
-    content
-  )
-  index.versions.push(version)
-  for (const old of index.versions.splice(0, index.versions.length - KEEP))
-    await berth.fs.remove(`${dirOf(index.path)}/${old.id}.excalidraw`)
-  return version
-}
-
-async function readDrawing(path) {
-  try {
-    return await berth.fs.readText(path)
-  } catch (error) {
-    if (error.reason === "not-found") return null
-    throw error
+  const candidates = ["before", "manual", "external"].includes(entry.by)
+    ? [...index.versions].reverse()
+    : last ? [last] : []
+  for (const version of candidates) {
+    if (version.hash !== key) continue
+    const saved = await readText(versionFile(index, version))
+    if (saved !== null && withoutId(index.path, saved) === content) return version
   }
+  const version = { id: index.next++, time: Date.now(), hash: key, ...entry }
+  await berth.fs.writeText(versionFile(index, version), content)
+  index.versions.push(version)
+  while (index.versions.length > KEEP) {
+    const drop = index.versions.findIndex((item) => item.id !== keepId)
+    const [old] = index.versions.splice(drop, 1)
+    await berth.fs.remove(versionFile(index, old))
+  }
+  return version
 }
 
 /** 写坏的画板会让用户打不开，入库前先确认是场景 JSON。 */
 function checkScene(path, content) {
-  if (/\.excalidraw\.md$/i.test(path)) return
+  if (/\.excalidraw\.md$/i.test(path)) {
+    if (!/\n##? Drawing\r?\n[^`]*```(?:json|compressed-json)\r?\n[\s\S]+?```/.test(content))
+      throw new Error("New version is not an Excalidraw Markdown drawing")
+    return
+  }
   let scene
   try {
     scene = JSON.parse(content)
@@ -78,17 +83,20 @@ function checkScene(path, content) {
 /** 存当前版 → 记新版（带上用户在面板里提的要求）→ 写画板。index 先落盘，页面收到改写时记录已在。 */
 async function apply(path, content, note) {
   checkScene(path, content)
-  const index = await readIndex(path)
-  const current = await readDrawing(path)
-  if (current !== null) await record(index, current, { by: "before" })
+  const current = await readText(path)
+  const binding = await prepare(path)
+  if (binding.conflict) throw new Error(`Drawing ID already used by: ${binding.conflict}`)
+  const index = await readIndex(path, binding)
+  if (current?.trim()) await record(index, current, { by: "before" })
   const version = await record(index, content, {
     by: "agent",
     request: index.pending?.text,
     note: note || undefined,
   })
   index.pending = null
+  if (await readText(path) !== current) throw new Error("画板已变更，请重新读取后再保存 / Drawing changed; reload before applying")
   await writeIndex(index)
-  await berth.fs.writeText(path, content)
+  await berth.fs.writeText(path, withId(path, content, binding.id))
   return version
 }
 
@@ -100,7 +108,7 @@ const summary = (index) => ({
 
 async function cli([command, drawing, file, ...note]) {
   if (command === "list" && drawing) {
-    const index = await readIndex(absolute(drawing))
+    const { index } = await openHistory(absolute(drawing))
     for (const v of summary(index).versions)
       console.log(
         `#${v.id} ${new Date(v.time).toISOString()} ${v.by}` +
@@ -128,11 +136,11 @@ async function cli([command, drawing, file, ...note]) {
 /**
  * `path` 一律是画板绝对路径。
  * - `list {path}`：`{ pending, versions }`，新的在前；版本 `by`：`agent` Agent 改的、`before` 改动前存档、
- *   `restore` 回到旧版（`from` 是哪一版）、`external` 画板被外部直接改写。
+ *   `manual` 手动存档、`external` 画板被外部直接改写。
  * - `get {path, id}`：`{ content }`。
  * - `request {path, text, content}`：用户在面板提了要求：存下当前内容，要求挂到下一次 apply。
  * - `snapshot {path, content, by?}`：存一版（内容没变就不存）。
- * - `restore {path, id, content}`：先存当前内容，再记一版「回到 #id」，返回旧版 `content` 由页面写回。
+ * - `restore {path, id, content}`：当前内容还未存档才存一版，直接返回指定旧版 `content` 由页面写回。
  * - `apply {path, content, note?}`：同命令行 apply。
  */
 export default async function history(input) {
@@ -149,14 +157,14 @@ export default async function history(input) {
   const action = input.action ?? "list"
   if (action === "apply")
     return apply(path, String(input.content ?? ""), input.note)
-  const index = await readIndex(path)
+  if (action === "prepare" || action === "fork") return prepare(path, { fork: action === "fork" })
+  const readId = ["list", "get"].includes(action) ? input.drawingId : undefined
+  const { index, binding } = await openHistory(path, input.content, ["request", "snapshot", "restore"].includes(action), readId)
   if (action === "list") return summary(index)
   if (action === "get") {
-    if (!index.versions.some((v) => v.id === input.id))
-      throw new Error(`no version #${input.id}`)
-    return {
-      content: await berth.fs.readText(`${dirOf(path)}/${input.id}.excalidraw`),
-    }
+    const version = index.versions.find((v) => v.id === input.id)
+    if (!version) throw new Error(`no version #${input.id}`)
+    return { content: await berth.fs.readText(versionFile(index, version)) }
   }
   if (action === "request" || action === "snapshot") {
     const content = String(input.content ?? "")
@@ -170,17 +178,16 @@ export default async function history(input) {
     return summary(index)
   }
   if (action === "restore") {
-    if (!index.versions.some((v) => v.id === input.id))
-      throw new Error(`no version #${input.id}`)
-    const content = await berth.fs.readText(
-      `${dirOf(path)}/${input.id}.excalidraw`
-    )
-    if (input.content)
-      await record(index, String(input.content), { by: "before" })
-    // 与最新版相同时 record 不记，「回到」这一步就不单独出现
-    await record(index, content, { by: "restore", from: input.id })
-    await writeIndex(index)
-    return { content }
+    const version = index.versions.find((v) => v.id === input.id)
+    if (!version) throw new Error(`no version #${input.id}`)
+    const content = await berth.fs.readText(versionFile(index, version))
+    checkScene(path, content)
+    if (input.content) {
+      const previousNext = index.next
+      await record(index, String(input.content), { by: "before" }, version.id)
+      if (index.next !== previousNext) await writeIndex(index)
+    }
+    return { content: withId(path, content, binding.id) }
   }
   throw new Error(
     `unknown action ${action}; use list, get, request, snapshot, restore or apply`

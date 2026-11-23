@@ -1,0 +1,80 @@
+#sidebar-scroll { height: 100%; overflow-y: auto; }
+#sidebar-scroll #root { height: auto; overflow: visible; }
+.drawing-gallery, .materials { padding: 10px; font-size: 13px; }
+.material-groups { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+.material-groups button { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; }
+.material-groups button[aria-pressed="true"] { border-color: var(--berth-primary, #4c6ef5); background: var(--hover); font-weight: 600; }
+.materials h2 { margin: 0 0 8px; font-size: 14px; }
+.recommended-shapes { margin-bottom: 10px; }
+.recommended-shapes li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; }
+.recommended-shapes small { display: block; color: var(--muted); }
+.recommended-shapes button { flex: none; }
+.material-search { margin: 10px 0; }
+.material-card { cursor: default; display: grid; gap: 5px; }
+.material-card strong, .material-text { overflow-wrap: anywhere; }
+.material-card p { margin: 0; }
+.material-reference img { display: block; width: 100%; max-height: 160px; object-fit: contain; background: white; border-radius: 5px; }
+.material-reference:empty { min-height: 70px; border-radius: 5px; background: var(--hover); }
+.material-swatches { display: flex; flex-wrap: wrap; gap: 3px; }
+.material-swatches button { width: 34px; height: 30px; border: 1px solid #80808080; border-radius: 4px; }
+.material-pick { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+.material-form { display: grid; gap: 5px; margin-top: 8px; }
+.material-text { white-space: pre-wrap; margin: 0; max-height: 180px; overflow-y: auto; }
+.drawing-gallery { box-sizing: border-box; min-height: calc(100vh - 12px); display: flex; flex-direction: column; }
+.gallery-composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-top: auto;
+  max-height: 45vh;
+  overflow: auto;
+  border-top: 1px solid var(--berth-border, #8885);
+  background: var(--berth-background, Canvas);
+}
+.gallery-revision-form.berth-panel { padding: 8px 2px 2px; background: transparent; }
+.gallery-revision-label { font-weight: 600; }
+.gallery-identity-conflict { display: grid; gap: 6px; justify-items: start; margin: 0 0 6px; }
+.gallery-identity-conflict p { margin: 0; overflow-wrap: anywhere; }
+.berth-versions li { padding: 0; }
+.berth-panel button.berth-version-entry {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 6px;
+  border: 0;
+  text-align: left;
+}
+.berth-version-entry:hover { background: var(--berth-accent, #8882); }
+.berth-history-detail { background: var(--berth-background, Canvas); color: var(--berth-foreground, CanvasText); }
+.berth-history-detail .berth-history-back { align-self: flex-start; }
+.berth-history-detail figure { min-width: 0; }
+.berth-history-detail figcaption { padding-bottom: 4px; }
+.berth-history-detail button {
+  border: 1px solid var(--berth-border, #8885);
+  border-radius: 5px;
+  padding: 4px 8px;
+}
+.berth-history-detail .berth-compare-actions { flex-wrap: wrap; }
+.drawing-gallery button {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 5px 8px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--berth-border, #8885);
+  border-radius: 5px;
+  font: inherit;
+}
+.drawing-gallery button:not(:disabled) { cursor: pointer; }
+.gallery-history { overflow-wrap: anywhere; }
+.gallery-history-toolbar { display: grid; justify-items: start; gap: 8px; margin-bottom: 8px; }
+.gallery-history-toolbar h2 { margin: 0; font-size: 15px; }
+.gallery-history-entry { margin-bottom: 6px; }
+.gallery-list, .gallery-stored-shapes { list-style: none; padding: 0; margin: 6px 0; }
+.gallery-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.gallery-list li { min-width: 0; }
+.gallery-list button { display: block; width: 100%; padding: 2px; }
+.gallery-list button:hover, .gallery-list button[aria-current] { border-color: var(--berth-primary, #4c6ef5); }
+.drawing-preview { display: grid; place-items: center; height: 148px; padding: 5px; overflow: hidden; background: white; color: #777; border-radius: 3px; }
+.drawing-preview img { display: block; width: 100%; height: 100%; min-height: 0; object-fit: contain; }
+.gallery-stored-shapes li { padding: 4px 0; }
