@@ -7,8 +7,6 @@
 
 import { TEMPLATES } from "./templates.js"
 import { layout } from "./layout.js"
-import { newId, withId } from "../page/identity.js"
-import { registerDrawing } from "./registry.js"
 
 const PUBLIC_ROOT =
   "https://raw.githubusercontent.com/excalidraw/excalidraw-libraries/main/"
@@ -46,8 +44,6 @@ const USER_DIRS = {
   reference: "references",
   template: "templates",
   prompt: "prompts",
-  style: "styles",
-  palette: "palettes",
 }
 
 const libraryDir = () => `${berth.storage.dir}/library`
@@ -204,7 +200,7 @@ async function addFile(input) {
     ? input.path
     : `${await projectRoot()}/${input.path}`
   const ext = extOf(from)
-  const kind = TEXT_EXT.includes(ext) && input.kind === "style" ? "style" : IMAGE_MIME[ext]
+  const kind = IMAGE_MIME[ext]
     ? "reference"
     : ext === "excalidraw"
       ? "template"
@@ -240,8 +236,7 @@ async function addFile(input) {
  * - `publicCatalog` / `publicLibrary {source}`：只读官方公开目录和素材文件，需 network 权限。
  * - `exportShapes {content}`：将原生图形素材库导出到项目 figures/，不覆盖同名文件。
  * - `add {path, title?, tags?}`：把文件加进素材库（复制进 library/user/），按后缀归类。
- * - `addText {title, text, kind?, tags?}`：新建提示词或风格说明。
- * - `addPalette {title, colors}`：添加一组十六进制颜色。
+ * - `addText {title, text, tags?}`：新建一条提示词。
  * - `remove {id}` / `restore {id}`：移出图库 / 放回（文件不删）。
  */
 export default async function library(input) {
@@ -307,12 +302,12 @@ export default async function library(input) {
       slug(item.title),
       "excalidraw"
     )
-    const scene = item.structure
-      ? JSON.stringify(layout(item.structure), null, 2) + "\n"
-      : await berth.fs.readText(`${dir}/${item.path}`)
-    const content = withId(path, scene, newId())
-    await berth.fs.writeText(path, content)
-    await registerDrawing(path, content)
+    if (item.structure)
+      await berth.fs.writeText(
+        path,
+        JSON.stringify(layout(item.structure), null, 2) + "\n"
+      )
+    else await berth.fs.copy(`${dir}/${item.path}`, path)
     return { path }
   }
   if (action === "exportShapes") {
@@ -334,28 +329,14 @@ export default async function library(input) {
     const title = String(input?.title ?? "").trim()
     const text = String(input?.text ?? "").trim()
     if (!title || !text) throw new Error("addText needs title and text")
-    const kind = input.kind === "style" ? "style" : "prompt"
-    const to = await freePath(`${dir}/user/${USER_DIRS[kind]}`, slug(title), "md")
+    const to = await freePath(`${dir}/user/prompts`, slug(title), "md")
     await berth.fs.writeText(to, text + "\n")
     return addUserItem({
-      kind,
+      kind: "prompt",
       title,
       tags: input.tags,
       path: to.slice(dir.length + 1),
     })
-  }
-  if (action === "addPalette") {
-    const title = String(input.title ?? "").trim()
-    const raw = Array.isArray(input.colors) ? input.colors : String(input.colors ?? "").split(/[\s,，;；]+/).filter(Boolean)
-    if (!title || !raw.length || raw.length > 24 || raw.some((color) => !/^#?(?:[\da-f]{3}|[\da-f]{6})$/i.test(String(color))))
-      throw new Error("请填写配色名称和 1–24 个十六进制色值，如 #1864AB / Enter a title and 1–24 hex colors")
-    const colors = [...new Set(raw.map((color) => {
-      const hex = String(color).replace(/^#/, "").toUpperCase()
-      return `#${hex.length === 3 ? Array.from(hex, (digit) => digit.repeat(2)).join("") : hex}`
-    }))]
-    const to = await freePath(`${dir}/user/palettes`, slug(title), "md")
-    await berth.fs.writeText(to, `${colors.join(", ")}\n`)
-    return addUserItem({ kind: "palette", title, colors, tags: input.tags, path: to.slice(dir.length + 1) })
   }
   if (action === "remove" || action === "restore") {
     await findItem(input?.id)
@@ -368,6 +349,6 @@ export default async function library(input) {
     return { id: input.id, removed: action === "remove" }
   }
   throw new Error(
-    `unknown action ${action}; use list, get, create, add, addText, addPalette, remove or restore`
+    `unknown action ${action}; use list, get, create, add, addText, remove or restore`
   )
 }

@@ -24,27 +24,20 @@ berth tools call excalidraw private/library.js --input '{"action":"get","id":"<i
 
 路径可以是相对当前目录的路径。
 
-## 图库：项目里的原图
+## 素材库
 
-图库只显示当前 Berth 空间里的 `.excalidraw` 和 `.excalidraw.md`，每行一张草图缩略图，滚动查看，不显示文件名列表。
-点击缩略图直接打开原图，不复制或移动文件。新建画板后会自动出现，面板可见时每 15 秒刷新。
-打开画板后，点击图库里的「查看修改历史」进入独立历史页面。点击历史条目可只读预览，也可和当前画板对比或回退。点「返回图库」回到缩略图。回退会直接使用选中的旧版，不生成一份重复版本；回退前未存档的画板内容会保留。手动编辑正常保存到原图；需要留一个可回退的节点时，点击「保存当前版本」。
-画板历史按文件内的唯一编号管理。新建时登记；无编号的旧图或外部文件在首次编辑保存（或主动存档）时补号，只浏览不会修改文件。改名、移动后直接打开，历史会跟随编号。旧的按路径存档不读取、不迁移。若系统复制后两份文件仍共用编号，副本需选择「作为新画板」。
-
-## 素材库：模板、参考素材和图形
-
-「素材库」分为提示词、配色、参考图、组件与图标、模板、风格。提示词和风格可以直接填写，配色支持添加色值和点色块复制。图片从文件树拖入作为参考图。组件与图标沿用 Excalidraw 图形素材，打开画板后可收藏、导入和插入。「推荐组件包」里的软件架构、基础图形和 UML / ER 来自 Excalidraw 官方目录，按需导入。模板和参考素材的文件在插件数据目录 `$BERTH_HOME/state/excalidraw/library/`（`list` 返回的 `dir` 就是它，`BERTH_HOME` 缺省
-`~/.berth`）。插件只自带几份起手模板；参考图、风格、提示词都是用户自己加的，素材库里作为可选参考
+在插件数据目录 `$BERTH_HOME/state/excalidraw/library/`（`list` 返回的 `dir` 就是它，`BERTH_HOME` 缺省
+`~/.berth`）。插件只自带几份起手模板；参考图、风格、提示词都是用户自己加的，图库里作为可选的「附加」
 随模板一起交给你。
 
-用户说「把这张图 / 这个画板 / 这段提示词加进素材库」时：
+用户说「把这张图 / 这个画板 / 这段提示词加进图库」时：
 
 ```bash
 # 文件入库（复制进素材库）：图片 → 参考，.excalidraw → 模板，.md / .txt → 提示词
 berth tools call excalidraw private/library.js --input '{"action":"add","path":"<绝对路径>","title":"<标题>","tags":["<标签>"]}'
 # 一段文字存成提示词
 berth tools call excalidraw private/library.js --input '{"action":"addText","title":"<标题>","text":"<正文>"}'
-# 移出素材库 / 放回（文件不删）
+# 移出图库 / 放回（文件不删）
 berth tools call excalidraw private/library.js --input '{"action":"remove","id":"<id>"}'
 ```
 
@@ -58,17 +51,17 @@ berth tools call excalidraw private/library.js --input '{"action":"remove","id":
 
 ## 改图记录
 
-用户打开画板后，在 Excalidraw 侧栏「图库」底部的常驻输入框里写要求，也可在画板中选中元素。点击「保存要求并复制给 Agent」，
+用户在 Excalidraw 侧栏的「改图」页签里写要求、选中元素，点击「保存要求并复制给 Agent」，
 再手动粘贴到能访问项目文件的 Agent。说明包含画板绝对路径、要求、选区和存档操作；按 skill
 `excalidraw-diagram` 的「按用户意见改图」做。每次经 apply 写入的版本存在
-`$BERTH_HOME/state/excalidraw/history-by-id/`，编号索引在同级的 `drawing-ids/`。用户自己在面板里对比、回退，你不用替用户回退。
+`$BERTH_HOME/state/excalidraw/history/`，用户自己在面板里对比、回退，你不用替用户回退。
 面板明确显示当前画板，一次请求只针对该文件；切换画板标签页即可换目标，草稿在当前页面会话中按
 绝对文件路径暂存，切回来继续写，不合并成多文件批量修改。复制不清空要求，也不自动投递或执行；
 剪贴板不可用时，面板会展示完整说明供手动复制。最近保存的要求仍是单条最新要求，不是执行队列。同一画板可多选元素，选区不再截断为 30 个。
 
 ## 图形素材库
 
-「素材库 → 图形素材」保存可重复插入的图形组合，与同一页签的模板和参考素材分区显示。
+Excalidraw 左侧「素材库」保存可重复插入的图形组合，与「图库」中的参考图片、模板和提示词分开。
 「浏览公开素材库 · 添加素材」读取官方公开目录，可按名称、说明、作者搜索，直接添加选中的素材库；
 不必先去网页下载再导入。联网失败可重试，也可「打开官网」或从本地导入 `.excalidrawlib`。
 插件为此使用 `network` 权限，只从官方 `excalidraw/excalidraw-libraries` 仓库读取目录与素材文件。
@@ -76,4 +69,4 @@ berth tools call excalidraw private/library.js --input '{"action":"remove","id":
 素材标注为个人 / 公开，移除不会删除画板中已经插入的图形。界面适配 Berth 左侧，不是原生右侧面板的直接搬运。
 「导出到项目」写到当前项目 `figures/library.excalidrawlib`（重名自动编号，不覆盖原文件）。
 素材经 Excalidraw 原生持久化适配器保存在插件 storage 的 `shape-library` 键，跨画板和项目共用。
-保存失败会提示，可「重试」或先导出备份；图片可放在「素材库」的参考素材区，不作为图形组合收藏。
+保存失败会提示，可「重试」或先导出备份；图片和嵌入内容仍放「图库」，不作为图形组合收藏。

@@ -67,7 +67,7 @@ berth tools run excalidraw private/render.js figures/<名字>.excalidraw /tmp/<�
 
 ## 照图重画
 
-用户给了一张图（或素材库里的参考图）要重画成可编辑的：
+用户给了一张图（或图库里的参考图）要重画成可编辑的：
 
 1. 读图，列出所有框、文字、箭头和分组，估每个框的位置和大小（以图宽 1000px 为基准）。
 2. 写结构 JSON，每个节点都给 `x` / `y` / `width` / `height`，颜色取图里的主色。
@@ -76,7 +76,7 @@ berth tools run excalidraw private/render.js figures/<名字>.excalidraw /tmp/<�
 ## 改已有画板：一律经 history.js apply
 
 **不要直接写已有的画板文件。** 把新版写到 `/tmp`，再用 apply 写入：它先把当前版本存档，再写新版并记下你
-的说明，用户打开原图后，在 Excalidraw 侧栏「图库 → 修改历史」里能看到每一版、对比、一键回到任意一版。新建画板也可以这样写入。
+的说明，用户在Excalidraw 侧栏的「改图」页签里能看到每一版、对比、一键回到任意一版。新建画板也可以这样写入。
 
 ```bash
 berth tools run excalidraw private/history.js apply <画板> /tmp/<名字>.excalidraw "<一句话：改了什么>"

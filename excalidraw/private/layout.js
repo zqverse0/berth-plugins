@@ -13,8 +13,6 @@
 // 直连会穿过别的节点时从侧面绕行；两端都绑定到节点（拖动节点时箭头跟着走）。输入可以带 ```json 围栏、尾逗号或没闭合的括号，会先修好。
 
 import { absolute } from "./paths.js"
-import { newId, withId } from "../page/identity.js"
-import { registerDrawing } from "./registry.js"
 
 const NODE_GAP = 60
 const RANK_GAP = 120
@@ -422,12 +420,10 @@ export default async function main([input, out]) {
   try {
     const structure = repairJson(await berth.fs.readText(absolute(input)))
     const drawing = layout(structure, await readImages(structure))
-    const path = absolute(out)
-    if (/\.excalidraw\.md$/i.test(path)) throw new Error("layout.js creates .excalidraw JSON files")
-    if (await berth.fs.stat(path)) throw new Error("Output already exists; use a new path or history.js apply")
-    const content = withId(path, JSON.stringify(drawing, null, 2) + "\n", newId())
-    await berth.fs.writeText(path, content)
-    await registerDrawing(path, content)
+    await berth.fs.writeText(
+      absolute(out),
+      JSON.stringify(drawing, null, 2) + "\n"
+    )
     const arrows = drawing.elements.filter(
       (element) => element.type === "arrow"
     ).length
